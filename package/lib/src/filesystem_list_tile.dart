@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as Path;
 import 'common.dart';
 import 'options/theme/_filelist_theme.dart';
@@ -8,7 +9,7 @@ import 'options/theme/_filelist_theme.dart';
 /// selection button for the file (configured in the `fileTileSelectMode` parameter).
 ///
 /// Used in conjunction with the `FilesystemList` widget.
-class FilesystemListTile extends StatelessWidget {
+class FilesystemListTile extends StatefulWidget {
   /// The type of view (folder and files, folder only or files only), by default `FilesystemType.all`.
   final FilesystemType fsType;
 
@@ -47,16 +48,35 @@ class FilesystemListTile extends StatelessWidget {
     this.caseSensitiveFileExtensionComparison = false,
   }) : super(key: key);
 
+  @override
+  State<FilesystemListTile> createState() => _FilesystemListTileState();
+}
+
+class _FilesystemListTileState extends State<FilesystemListTile> {
+  late FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
   Widget _leading(BuildContext context, FilesystemPickerFileListThemeData theme,
       bool isFile) {
-    if (item is Directory) {
+    if (widget.item is Directory) {
       return Icon(
         theme.getFolderIcon(context),
-        color: theme.getFolderIconColor(context, folderIconColor),
+        color: theme.getFolderIconColor(context, widget.folderIconColor),
         size: theme.getIconSize(context),
       );
     } else {
-      return _fileIcon(context, theme, item.path, isFile);
+      return _fileIcon(context, theme, widget.item.path, isFile);
     }
   }
 
@@ -66,7 +86,7 @@ class FilesystemListTile extends StatelessWidget {
       [Color? color]) {
     final _extension = filename.split(".").last;
     IconData icon = theme.getFileIcon(
-        context, _extension, caseSensitiveFileExtensionComparison);
+        context, _extension, widget.caseSensitiveFileExtensionComparison);
 
     return Icon(
       icon,
@@ -77,10 +97,10 @@ class FilesystemListTile extends StatelessWidget {
 
   Widget? _trailing(BuildContext context,
       FilesystemPickerFileListThemeData theme, bool isFile) {
-    final isCheckable = ((fsType == FilesystemType.all) ||
-        ((fsType == FilesystemType.file) &&
-            (item is File) &&
-            (fileTileSelectMode != FileTileSelectMode.wholeTile)));
+    final isCheckable = ((widget.fsType == FilesystemType.all) ||
+        ((widget.fsType == FilesystemType.file) &&
+            (widget.item is File) &&
+            (widget.fileTileSelectMode != FileTileSelectMode.wholeTile)));
 
     if (isCheckable) {
       final iconTheme = theme.getCheckIconTheme(context);
@@ -90,7 +110,7 @@ class FilesystemListTile extends StatelessWidget {
           color: iconTheme.color,
           size: iconTheme.size,
         ),
-        onTap: () => onSelect(item.absolute.path),
+        onTap: () => widget.onSelect(widget.item.absolute.path),
       );
     } else {
       return null;
@@ -99,25 +119,41 @@ class FilesystemListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveTheme = theme ?? FilesystemPickerFileListThemeData();
-    final isFile = (fsType == FilesystemType.file) && (item is File);
+    final effectiveTheme = widget.theme ?? FilesystemPickerFileListThemeData();
+    final isFile =
+        (widget.fsType == FilesystemType.file) && (widget.item is File);
     final style = !isFile
         ? effectiveTheme.getFolderTextStyle(context)
         : effectiveTheme.getFileTextStyle(context);
 
-    return ListTile(
-      key: Key(item.absolute.path),
-      leading: _leading(context, effectiveTheme, isFile),
-      trailing: _trailing(context, effectiveTheme, isFile),
-      title: Text(Path.basename(item.path),
-          style: style,
-          textScaleFactor: effectiveTheme.getTextScaleFactor(context, isFile)),
-      onTap: (item is Directory)
-          ? () => onChange(item as Directory)
-          : ((fsType == FilesystemType.file &&
-                  fileTileSelectMode == FileTileSelectMode.wholeTile)
-              ? () => onSelect(item.absolute.path)
-              : null),
+    void Function()? onTap = (widget.item is Directory)
+        ? () => widget.onChange(widget.item as Directory)
+        : ((widget.fsType == FilesystemType.file &&
+                widget.fileTileSelectMode == FileTileSelectMode.wholeTile)
+            ? () => widget.onSelect(widget.item.absolute.path)
+            : null);
+
+    return RawKeyboardListener(
+      focusNode: _focusNode,
+      onKey: (event) {
+        if (event is RawKeyDownEvent && event.data is RawKeyEventDataAndroid) {
+          RawKeyEventDataAndroid rawKeyEventDataAndroid =
+              event.data as RawKeyEventDataAndroid;
+          if (rawKeyEventDataAndroid == 23 && onTap != null) {
+            onTap();
+          }
+        }
+      },
+      child: ListTile(
+        key: Key(widget.item.absolute.path),
+        leading: _leading(context, effectiveTheme, isFile),
+        trailing: _trailing(context, effectiveTheme, isFile),
+        title: Text(Path.basename(widget.item.path),
+            style: style,
+            textScaleFactor:
+                effectiveTheme.getTextScaleFactor(context, isFile)),
+        onTap: onTap,
+      ),
     );
   }
 }

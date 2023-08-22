@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:filesystem_picker/src/actions/action.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as Path;
 import 'common.dart';
 import 'filesystem_list.dart';
@@ -473,6 +474,20 @@ class _FilesystemPickerState extends State<FilesystemPicker> {
 
   Key _fileListKey = UniqueKey();
 
+  late FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -635,33 +650,47 @@ class _FilesystemPickerState extends State<FilesystemPicker> {
         ? theme.getForegroundColor(context)
         : theme.getDisabledForegroundColor(context);
 
-    return SizedBox(
-      height: _defaultBottomBarHeight,
-      child: Material(
-        color: theme.getBackgroundColor(context),
-        shape: theme.getShape(context),
-        elevation: theme.getElevation(context) ?? 0,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: TextButton.icon(
-            style: TextButton.styleFrom(
-              foregroundColor: theme.getForegroundColor(context),
-              disabledForegroundColor:
-                  theme.getDisabledForegroundColor(context),
+    void Function()? onPressed =
+        (!permissionRequesting && permissionAllowed && isValidDirectory)
+            ? () => widget.onSelect(directory!.absolute.path)
+            : null;
+
+    return RawKeyboardListener(
+      focusNode: _focusNode,
+      onKey: (event) {
+        if (event is RawKeyDownEvent && event.data is RawKeyEventDataAndroid) {
+          RawKeyEventDataAndroid rawKeyEventDataAndroid =
+              event.data as RawKeyEventDataAndroid;
+          if (rawKeyEventDataAndroid == 23 && onPressed != null) {
+            onPressed();
+          }
+        }
+      },
+      child: SizedBox(
+        height: _defaultBottomBarHeight,
+        child: Material(
+          color: theme.getBackgroundColor(context),
+          shape: theme.getShape(context),
+          elevation: theme.getElevation(context) ?? 0,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: theme.getForegroundColor(context),
+                disabledForegroundColor:
+                    theme.getDisabledForegroundColor(context),
+              ),
+              icon: Icon(
+                theme.getCheckIcon(context),
+                color: foregroundColor,
+                size: pickerIconTheme.size,
+              ),
+              label: (widget.pickText != null)
+                  ? Text(widget.pickText!,
+                      style: theme.getTextStyle(context, foregroundColor))
+                  : const SizedBox(),
+              onPressed: onPressed,
             ),
-            icon: Icon(
-              theme.getCheckIcon(context),
-              color: foregroundColor,
-              size: pickerIconTheme.size,
-            ),
-            label: (widget.pickText != null)
-                ? Text(widget.pickText!,
-                    style: theme.getTextStyle(context, foregroundColor))
-                : const SizedBox(),
-            onPressed:
-                (!permissionRequesting && permissionAllowed && isValidDirectory)
-                    ? () => widget.onSelect(directory!.absolute.path)
-                    : null,
           ),
         ),
       ),
