@@ -139,7 +139,7 @@ class _FilesystemListTileState extends State<FilesystemListTile> {
         if (event is RawKeyDownEvent && event.data is RawKeyEventDataAndroid) {
           RawKeyEventDataAndroid rawKeyEventDataAndroid =
               event.data as RawKeyEventDataAndroid;
-          if (rawKeyEventDataAndroid == 23 && onTap != null) {
+          if (rawKeyEventDataAndroid.keyCode == 23 && onTap != null) {
             onTap();
           }
         }

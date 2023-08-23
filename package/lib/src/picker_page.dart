@@ -661,7 +661,7 @@ class _FilesystemPickerState extends State<FilesystemPicker> {
         if (event is RawKeyDownEvent && event.data is RawKeyEventDataAndroid) {
           RawKeyEventDataAndroid rawKeyEventDataAndroid =
               event.data as RawKeyEventDataAndroid;
-          if (rawKeyEventDataAndroid == 23 && onPressed != null) {
+          if (rawKeyEventDataAndroid.keyCode == 23 && onPressed != null) {
             onPressed();
           }
         }
